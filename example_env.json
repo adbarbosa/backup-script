@@ -1,0 +1,15 @@
+{
+	"SMS": {
+		"USER": "username",
+		"PASS": "password",
+		"API_ID": "xxxxxxx",
+		"TO": 351000000000,
+		"FROM": "from-name"
+	},
+	"LOG": {
+		"PATH": "/path/to/logs/"
+	},
+	"BACKUP": {
+		"HISTORY_PATH": "/path/to/backup_history/"
+	}
+}
