@@ -6,17 +6,28 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
     source "$SCRIPT_DIR/.env"
 else
     echo "ERRO: Ficheiro .env não encontrado em $SCRIPT_DIR"
+
+        if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
+            "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Ficheiro .env não encontrado em $SCRIPT_DIR"
+        fi
     exit 1
 fi
 
 SOURCE="$SOURCE_PATH"
-# ATENÇÃO: Altere este caminho no ficheiro .env se necessário
 DEST="$RSYNC_DEST"
 
-# Pasta para onde vão os ficheiros apagados/alterados
-BACKUP_DIR="$DEST/_ELIMINADOS/$(date +%Y-%m-%d_%H-%M)"
+# Garante que o diretório de logs existe
+LOG_DIR=$(dirname "$RSYNC_LOG_FILE")
+mkdir -p "$LOG_DIR"
 
-LOGFILE="$RSYNC_LOG_FILE"
+LOGFILE="${RSYNC_LOG_FILE%.*}_$(date +%Y-%m-%d_%H-%M-%S).log"
+
+# Configura a pasta de arquivos deletados. Se a variável nova não existir, usa padrão antigo.
+if [ -n "$RSYNC_DELETED_BASE_DIR" ]; then
+    BACKUP_DIR="$RSYNC_DELETED_BASE_DIR/$(date +%Y-%m-%d_%H-%M)"
+else
+    BACKUP_DIR="$DEST/_ELIMINADOS/$(date +%Y-%m-%d_%H-%M)"
+fi
 
 # Converte a string do .env em array
 IFS=' ' read -r -a REQUIRED_MOUNTS <<< "$REQUIRED_MOUNTS_LIST"
@@ -24,26 +35,36 @@ IFS=' ' read -r -a REQUIRED_MOUNTS <<< "$REQUIRED_MOUNTS_LIST"
 # 1. Verifica se a NAS está montada (Origem)
 for mount in "${REQUIRED_MOUNTS[@]}"; do
     if ! mountpoint -q "${SOURCE}${mount}"; then
-        MSG="ERRO - A pasta de origem '${mount}' não está montada. Abortando."
+        MSG="ERRO - A pasta de origem '${mount}' não está montada em ${SOURCE}. Abortando."
         echo "$(date): $MSG" | tee -a "$LOGFILE"
-        "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rsync Local: $MSG"
+        if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
+            "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rsync Local: $MSG"
+        fi
         exit 1
     fi
 done
 
-# 2. Verifica se o disco externo está montado (Destino)
-# Verifica se o diretório existe primeiro para evitar erros do mountpoint se não existir
-if [ ! -d "$DEST" ] || ! mountpoint -q "$DEST"; then
-   MSG="ERRO - O disco de destino ($DEST) não está montado ou não existe. Abortando."
-   echo "$(date): $MSG" | tee -a "$LOGFILE"
-   "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rsync Local: $MSG"
-   exit 1
+# 2. Verifica se o disco externo está montado (Segurança)
+# Se LOCAL_MOUNT_POINT estiver definido, verifica ele. 
+if [ -n "$LOCAL_MOUNT_POINT" ]; then
+    if ! mountpoint -q "$LOCAL_MOUNT_POINT"; then
+       MSG="ERRO - O disco local ($LOCAL_MOUNT_POINT) não está montado. Abortando para evitar escrita na raiz."
+       echo "$(date): $MSG" | tee -a "$LOGFILE"
+       if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
+          "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rsync Local: $MSG"
+       fi
+       exit 1
+    fi
 fi
 
-echo "--- Início Backup Local (Rsync): $(date) ---" >> "$LOGFILE"
-
-# Garante que a pasta de destino existe (embora a verificação de mountpoint já garanta que o ponto existe)
+# Verifica/Cria diretório de destino e diretório de deletados
+mkdir -p "$DEST"
 mkdir -p "$BACKUP_DIR"
+
+echo "--- Início Backup Local (Rsync): $(date) ---" >> "$LOGFILE"
+echo "Origem: $SOURCE" >> "$LOGFILE"
+echo "Destino: $DEST" >> "$LOGFILE"
+echo "Lixeira: $BACKUP_DIR" >> "$LOGFILE"
 
 # Executa o rsync
 # -a: archive mode (preserva permissões, datas, donos, grupos, etc)
@@ -61,8 +82,12 @@ rsync -av --progress --delete \
 # Verifica o estado de saída do rsync
 if [ $? -eq 0 ]; then
     echo "--- Sucesso: $(date) ---" >> "$LOGFILE"
-    "$SCRIPT_DIR/notify_zulip.sh" "SUCCESS" "Rsync Local concluído com sucesso."
+    if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
+        "$SCRIPT_DIR/notify_zulip.sh" "SUCCESS" "Rsync Local concluído com sucesso."
+    fi
 else
     echo "--- FALHA: $(date) - Ocorreram erros no rsync ---" >> "$LOGFILE"
-    "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rsync Local falhou. Verifique o log em $LOGFILE"
+    if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
+        "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rsync Local falhou. Verifique o log em $LOGFILE"
+    fi
 fi

@@ -4,23 +4,16 @@
 DEBUG=true
 echo "Debug is $DEBUG"
 
-# Verifica se o jq está instalado
-if ! command -v jq &> /dev/null
-then
-	MSG="A ferramenta jq não está instalada. Por favor, instale-a primeiro."
-    echo "$MSG"
-	if [ "$DEBUG" = true ] ; then echo "$(date +"%Y/%m/%d %H:%M:%S") [$NAME] $MSG" >> "$LOG_PATH$LOG_FILE"; fi
+# Carregar configurações do .env
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    source "$SCRIPT_DIR/.env"
+else
+    echo "ERRO: Ficheiro .env não encontrado."
     exit 1
 fi
 
-# Ler os valores do ficheiro JSON
-SMS_USER=$(jq -r '.SMS.USER' env.json)
-SMS_PASS=$(jq -r '.SMS.PASS' env.json)
-SMS_API_ID=$(jq -r '.SMS.API_ID' env.json)
-SMS_TO=$(jq -r '.SMS.TO' env.json)
-SMS_FROM=$(jq -r '.SMS.FROM' env.json)
-
-LOG_PATH=$(jq -r '.LOG.PATH' env.json)
+LOG_PATH="$LEGACY_LOG_PATH"
 LOG_FILE="log_adb_$(date +"%Y%m%d_%H%M%S").log"
 
 NAME="adb"
@@ -31,7 +24,7 @@ BKP_FROM_PATH="${BKP_FROM_MOUNT_POINT}/"
 BKP_TO_MOUNT_POINT="/mnt/bkp_drive"
 BKP_TO_PATH="${BKP_TO_MOUNT_POINT}/adb/"
 
-BKP_HISTORY_PATH=$(jq -r '.BACKUP.HISTORY_PATH' env.json)
+BKP_HISTORY_PATH="$LEGACY_HISTORY_PATH"
 
 echo "log file: $LOG_FILE";
 

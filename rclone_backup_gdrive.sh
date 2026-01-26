@@ -17,7 +17,12 @@ SOURCE="$SOURCE_PATH"
 DEST="$RCLONE_DEST"
 # Pasta de arquivo com data e hora
 BACKUP_DIR="${RCLONE_BACKUP_DIR_BASE}/$(date +%Y-%m-%d_%H-%M)"
-LOGFILE="$RCLONE_LOG_FILE"
+
+# Garante que o diretório de logs existe
+LOG_DIR=$(dirname "$RCLONE_LOG_FILE")
+mkdir -p "$LOG_DIR"
+
+LOGFILE="${RCLONE_LOG_FILE%.*}_$(date +%Y-%m-%d_%H-%M-%S).log"
 
 # Converte a string do .env em array
 IFS=' ' read -r -a REQUIRED_MOUNTS <<< "$REQUIRED_MOUNTS_LIST"
@@ -27,7 +32,9 @@ for mount in "${REQUIRED_MOUNTS[@]}"; do
     if ! mountpoint -q "${SOURCE}${mount}"; then
         MSG="ERRO - A pasta '${mount}' não está montada. Abortando."
         echo "$(date): $MSG" >> "$LOGFILE"
-        "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rclone GDrive: $MSG"
+        if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
+             "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rclone GDrive: $MSG"
+        fi
         exit 1
     fi
 done
@@ -46,7 +53,11 @@ EXIT_CODE=$?
 echo "--- Fim: $(date) ---" >> "$LOGFILE"
 
 if [ $EXIT_CODE -eq 0 ]; then
-    "$SCRIPT_DIR/notify_zulip.sh" "SUCCESS" "Rclone GDrive concluído com sucesso."
+    if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
+        "$SCRIPT_DIR/notify_zulip.sh" "SUCCESS" "Rclone GDrive concluído com sucesso."
+    fi
 else
-    "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rclone GDrive falhou. Verifique o log em $LOGFILE"
+    if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
+        "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rclone GDrive falhou. Verifique o log em $LOGFILE"
+    fi
 fi
