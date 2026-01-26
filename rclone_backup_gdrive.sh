@@ -25,7 +25,9 @@ IFS=' ' read -r -a REQUIRED_MOUNTS <<< "$REQUIRED_MOUNTS_LIST"
 # Verifica se todas as pastas obrigatórias estão montadas
 for mount in "${REQUIRED_MOUNTS[@]}"; do
     if ! mountpoint -q "${SOURCE}${mount}"; then
-        echo "$(date): ERRO - A pasta '${mount}' não está montada. Abortando." >> "$LOGFILE"
+        MSG="ERRO - A pasta '${mount}' não está montada. Abortando."
+        echo "$(date): $MSG" >> "$LOGFILE"
+        "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rclone GDrive: $MSG"
         exit 1
     fi
 done
@@ -39,4 +41,12 @@ echo "--- Início: $(date) ---" >> "$LOGFILE"
     --checksum \
     --use-mmap
 
+EXIT_CODE=$?
+
 echo "--- Fim: $(date) ---" >> "$LOGFILE"
+
+if [ $EXIT_CODE -eq 0 ]; then
+    "$SCRIPT_DIR/notify_zulip.sh" "SUCCESS" "Rclone GDrive concluído com sucesso."
+else
+    "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rclone GDrive falhou. Verifique o log em $LOGFILE"
+fi
