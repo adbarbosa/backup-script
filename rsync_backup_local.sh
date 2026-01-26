@@ -13,18 +13,35 @@ else
     exit 1
 fi
 
-SOURCE="$SOURCE_PATH"
-DEST="$RSYNC_DEST"
+SUBFOLDER="$1"
+# Remove barras finais do subfolder se existirem
+SUBFOLDER="${SUBFOLDER%/}"
+
+if [ -n "$SUBFOLDER" ]; then
+    SOURCE="${SOURCE_PATH}${SUBFOLDER}/"
+    DEST="${RSYNC_DEST}/${SUBFOLDER}/"
+    JOB_INFO="Partial Backup: $SUBFOLDER"
+    LOG_SUFFIX="_${SUBFOLDER//\//_}"
+else
+    SOURCE="$SOURCE_PATH"
+    DEST="$RSYNC_DEST"
+    JOB_INFO="Full Backup"
+    LOG_SUFFIX=""
+fi
 
 # Garante que o diretório de logs existe
 LOG_DIR=$(dirname "$RSYNC_LOG_FILE")
 mkdir -p "$LOG_DIR"
 
-LOGFILE="${RSYNC_LOG_FILE%.*}_$(date +%Y-%m-%d_%H-%M-%S).log"
+LOGFILE="${RSYNC_LOG_FILE%.*}_$(date +%Y-%m-%d_%H-%M-%S)${LOG_SUFFIX}.log"
 
 # Configura a pasta de arquivos deletados. Se a variável nova não existir, usa padrão antigo.
 if [ -n "$RSYNC_DELETED_BASE_DIR" ]; then
-    BACKUP_DIR="$RSYNC_DELETED_BASE_DIR/$(date +%Y-%m-%d_%H-%M)"
+    if [ -n "$SUBFOLDER" ]; then
+         BACKUP_DIR="$RSYNC_DELETED_BASE_DIR/${SUBFOLDER}/$(date +%Y-%m-%d_%H-%M)"
+    else
+         BACKUP_DIR="$RSYNC_DELETED_BASE_DIR/FULL/$(date +%Y-%m-%d_%H-%M)"
+    fi
 else
     BACKUP_DIR="$DEST/_ELIMINADOS/$(date +%Y-%m-%d_%H-%M)"
 fi
@@ -32,13 +49,27 @@ fi
 # Converte a string do .env em array
 IFS=' ' read -r -a REQUIRED_MOUNTS <<< "$REQUIRED_MOUNTS_LIST"
 
+# Define quais mounts verificar
+CHECK_MOUNTS=()
+if [ -n "$SUBFOLDER" ]; then
+    # Verifica se a subpasta é um dos mounts listados
+    for mount in "${REQUIRED_MOUNTS[@]}"; do
+        if [[ "$SUBFOLDER" == "$mount" ]] || [[ "$SUBFOLDER" == "$mount/"* ]]; then
+             CHECK_MOUNTS+=("$mount")
+        fi
+    done
+else
+    CHECK_MOUNTS=("${REQUIRED_MOUNTS[@]}")
+fi
+
 # 1. Verifica se a NAS está montada (Origem)
-for mount in "${REQUIRED_MOUNTS[@]}"; do
-    if ! mountpoint -q "${SOURCE}${mount}"; then
-        MSG="ERRO - A pasta de origem '${mount}' não está montada em ${SOURCE}. Abortando."
+# Usa SOURCE_PATH para verificar a raiz dos mounts
+for mount in "${CHECK_MOUNTS[@]}"; do
+    if ! mountpoint -q "${SOURCE_PATH}${mount}"; then
+        MSG="ERRO - A pasta de origem '${mount}' não está montada em ${SOURCE_PATH}. Abortando."
         echo "$(date): $MSG" | tee -a "$LOGFILE"
         if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
-            "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rsync Local: $MSG"
+            "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rsync Local ($JOB_INFO): $MSG"
         fi
         exit 1
     fi
@@ -69,12 +100,12 @@ echo "Lixeira: $BACKUP_DIR" >> "$LOGFILE"
 # Executa o rsync
 # -a: archive mode (preserva permissões, datas, donos, grupos, etc)
 # -v: verbose (detalhes no log)
-# --delete: apaga no destino ficheiros que já não existem na origem (Sync/Espelho)
-# --backup --backup-dir: move ficheiros apagados/alterados para a pasta de segurança
-# --exclude: evita copiar as pastas de backups antigos para dentro de si mesmas (loop infinito) se estiverem na raiz
-# --progress: mostra barra de progresso (útil para execução manual)
-rsync -av --progress --delete \
-    --backup --backup-dir="$BACKUP_DIR" \
+# --delete: apaga no destino ficheiros que já não existem na origem (Sync/Espelho) ($JOB_INFO)"
+    fi
+else
+    echo "--- FALHA: $(date) - Ocorreram erros no rsync ---" >> "$LOGFILE"
+    if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
+        "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rsync Local falhou. ($JOB_INFO)
     --exclude "_ELIMINADOS" \
     --log-file="$LOGFILE" \
     "$SOURCE" "$DEST"
