@@ -4,14 +4,23 @@
 # rclone sync /mnt/003_ImagemUrbana/nas/ "ImagemUrbanaBackup:Backup_Empresa" --backup-dir "ImagemUrbanaBackup:Backup_Empresa_ELIMINADOS/$(date +%Y-%m-%d_%H-%M)" --log-file="/home/adb/Development/003_ImagemUrbana/backup-script/backup_rclone.log" --log-level INFO --progress --checksum --use-mmap
 
 
-SOURCE="/mnt/003_ImagemUrbana/nas/"
-DEST="ImagemUrbanaBackup:Backup_Empresa"
-# Pasta de arquivo com data e hora
-BACKUP_DIR="ImagemUrbanaBackup:Backup_Empresa_ELIMINADOS/$(date +%Y-%m-%d_%H-%M)"
-LOGFILE="/home/adb/Development/003_ImagemUrbana/backup-script/backup_rclone.log"
+# Carregar configurações do .env
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    source "$SCRIPT_DIR/.env"
+else
+    echo "ERRO: Ficheiro .env não encontrado em $SCRIPT_DIR"
+    exit 1
+fi
 
-# Lista de pastas que DEVEM estar montadas (ATENÇÃO: Edite esta lista com os nomes reais das suas pastas)
-REQUIRED_MOUNTS=("adb" "DISCO_IU" "DISCO_IU_NEW" "DISCO_IU_XXX" "Public" "software" "backup" "gestao_documental" "ifthen" "portal" "Concursos_Publicos")
+SOURCE="$SOURCE_PATH"
+DEST="$RCLONE_DEST"
+# Pasta de arquivo com data e hora
+BACKUP_DIR="${RCLONE_BACKUP_DIR_BASE}/$(date +%Y-%m-%d_%H-%M)"
+LOGFILE="$RCLONE_LOG_FILE"
+
+# Converte a string do .env em array
+IFS=' ' read -r -a REQUIRED_MOUNTS <<< "$REQUIRED_MOUNTS_LIST"
 
 # Verifica se todas as pastas obrigatórias estão montadas
 for mount in "${REQUIRED_MOUNTS[@]}"; do
