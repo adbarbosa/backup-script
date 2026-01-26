@@ -1,78 +1,125 @@
-# Backup Script Setup
+# Backup Automation Scripts
 
-This document explains how to configure the `bkp.sh` backup script to be executable from the command line.
+This project contains scripts to automate file backups from a local NAS to a local HDD (using `rsync`) and to a cloud provider (Google Drive, using `rclone`). It also includes automated status notifications via Zulip.
 
-## Setup Steps
+## Scripts Overview
 
-### 1. Create the `env.json` File
+* `rsync_backup_local.sh`: Performs an incremental backup from the configured source to a local destination. Deleted or modified files are moved to a dated "deleted" directory rather than being permanently removed immediately.
+* `rclone_backup_gdrive.sh`: Syncs files from the source to a configured cloud remote. Similar to the local backup, deleted files are moved to a specific backup directory on the remote.
+* `notify_zulip.sh`: A helper script used by the backup scripts to send success or failure notifications to a Zulip stream.
 
-The script requires an `env.json` file to function properly. This file can be created by copying the existing `example_env.json` file. Follow these steps:
+## Prerequisites
 
-1. **Open a terminal** in the directory where the `bkp.sh` script is located.
+Ensure the following tools are installed on your system:
 
-2. **Ensure the `example_env.json` file is present** in the same directory as the `bkp.sh` script.
+* `rsync`
+* `rclone`
+* `curl` (for notifications)
+* `mountpoint` (usually part of sysvinit-utils or util-linux)
 
-3. **Create the `env.json` file** by copying `example_env.json`:
+## Setup
 
-    ```bash
-    cp example_env.json env.json
-    ```
+### 1. Configure the Environment
 
-   This will create a new file named `env.json` based on the contents of `example_env.json`.
+The scripts rely on a `.env` file for configuration. Create this file in the same directory as the scripts.
 
-4. **Edit the `env.json` file** as needed to include the necessary environment variables or configurations required by the script. You can use any text editor to modify this file.
-
-### 2. Make the Script Executable
-
-To make the `bkp.sh` script executable from the command line, you'll need to change the file permissions. Follow these steps:
-
-1. **Change the file permissions** to make it executable by running the following command:
+1. Create a file named `.env`:
 
     ```bash
-    chmod +x bkp.sh
+    touch .env
     ```
 
-2. The script is now ready to be executed. You can run it directly from the terminal with:
+2. Add the following content, adjusting the paths and credentials for your environment:
 
-    ```bash
-    ./bkp.sh
+    ```dotenv
+    # --- Source Configuration ---
+    # The base path of your source files (e.g., your NAS mount)
+    SOURCE_PATH="/mnt/nas/"
+
+    # Space-separated list of subdirectories inside SOURCE_PATH that MUST be mounted.
+    # The script will abort if any of these are missing.
+    REQUIRED_MOUNTS_LIST="folder1 folder2 folder3"
+
+    # --- Local Backup Configuration (Rsync) ---
+    # A mount point to check before running rsync (extra safety to prevent writing to root partition)
+    LOCAL_MOUNT_POINT="/mnt/HDD_Backup"
+
+    # Destination for the current backup mirror
+    RSYNC_DEST="/mnt/HDD_Backup/backup"
+
+    # Where to store files that are deleted/changed from the source
+    RSYNC_DELETED_BASE_DIR="/mnt/HDD_Backup/deleted"
+
+    # Local log file location
+    RSYNC_LOG_FILE="/mnt/HDD_Backup/logs/backup_rsync.log"
+
+    # --- Cloud Backup Configuration (Rclone) ---
+    # Rclone remote and path (e.g., RemoteName:Path)
+    RCLONE_DEST="MyRemote:Backup_Main"
+
+    # Remote path for deleted files
+    RCLONE_BACKUP_DIR_BASE="MyRemote:Backup_Deleted"
+
+    # Local log file location for rclone operations
+    RCLONE_LOG_FILE="/mnt/HDD_Backup/logs/backup_rclone.log"
+
+    # --- Notification Configuration (Zulip) ---
+    ZULIP_URL="https://your-domain.zulipchat.com/api/v1/messages"
+    ZULIP_BOT_EMAIL="your-bot-email@zulipchat.com"
+    ZULIP_BOT_API_KEY="your-bot-api-key"
+    ZULIP_STREAM="backups"
+    ZULIP_TOPIC="status"
     ```
 
-### 3. (Optional) Add the Script to Your PATH
+### 2. Make Scripts Executable
 
-If you want to be able to run the script from any directory, you can add the directory containing the script to your `PATH`. To do this:
-
-1. **Open your shell configuration file** (e.g., `~/.bashrc`, `~/.bash_profile`, or `~/.zshrc`).
-
-2. **Add the following line to the end of the file**:
-
-    ```bash
-    export PATH=$PATH:/path/to/script/directory
-    ```
-
-    Replace `/path/to/script/directory` with the actual path to the directory where `bkp.sh` is located.
-
-3. **Update your shell environment** to apply the changes:
-
-    ```bash
-    source ~/.bashrc
-    ```
-
-    or
-
-    ```bash
-    source ~/.bash_profile
-    ```
-
-4. You can now run the script from any directory by simply typing:
-
-    ```bash
-    bkp.sh
-    ```
-
-## Usage Example
-
-To execute the `bkp.sh` script, type:
+Run the following command in the script directory to ensure they can be executed:
 
 ```bash
-./bkp.sh
+chmod +x *.sh
+```
+
+## Configuration Details
+
+* **REQUIRED_MOUNTS_LIST**: This is a critical safety feature. If you are backing up a mounted network drive that has sub-shares, listing them here ensures `rsync` doesn't see an empty directory and delete all your backups thinking the source files were removed.
+* **Safe Deletion**: Both scripts use a `--backup-dir` strategy. If a file is deleted from the source, it is **not** immediately deleted from the destination. Instead, it is moved to a timestamped folder inside `RSYNC_DELETED_BASE_DIR` or `RCLONE_BACKUP_DIR_BASE`.
+
+## Usage
+
+You can run the scripts manually or schedule them via `cron`.
+
+### Manual Run
+
+To run the local backup:
+
+```bash
+./rsync_backup_local.sh
+```
+
+To run the cloud backup:
+
+```bash
+./rclone_backup_gdrive.sh
+```
+
+### Cron Example
+
+To run the local backup every day at 02:00 AM and the cloud backup at 04:00 AM:
+
+```bash
+# Edit crontab
+crontab -e
+
+# Add lines:
+0 2 * * * /home/user/path/to/rsync_backup_local.sh
+0 4 * * * /home/user/path/to/rclone_backup_gdrive.sh
+```
+
+## Logs & Notifications
+
+* **Logs**: Logs are generated for every run.
+  * Rsync logs: Defined by `RSYNC_LOG_FILE` (rotates with timestamp).
+  * Rclone logs: Defined by `RCLONE_LOG_FILE` (rotates with timestamp).
+* **Notifications**:
+  * If the backup completes successfully, a **success** message is sent to the configured Zulip stream.
+  * If the backup fails (mount missing, error code), an **error** message is sent to Zulip.
