@@ -36,14 +36,16 @@ mkdir -p "$LOG_DIR"
 LOGFILE="${RSYNC_LOG_FILE%.*}_$(date +%Y-%m-%d_%H-%M-%S)${LOG_SUFFIX}.log"
 
 # Configura a pasta de arquivos deletados. Se a variável nova não existir, usa padrão antigo.
+BACKUP_SUFFIX="_$(date +%Y-%m-%d_%H-%M)"
+
 if [ -n "$RSYNC_DELETED_BASE_DIR" ]; then
     if [ -n "$SUBFOLDER" ]; then
-         BACKUP_DIR="$RSYNC_DELETED_BASE_DIR/${SUBFOLDER}/$(date +%Y-%m-%d_%H-%M)"
+         BACKUP_DIR="$RSYNC_DELETED_BASE_DIR/${SUBFOLDER}"
     else
-         BACKUP_DIR="$RSYNC_DELETED_BASE_DIR/FULL/$(date +%Y-%m-%d_%H-%M)"
+         BACKUP_DIR="$RSYNC_DELETED_BASE_DIR/FULL"
     fi
 else
-    BACKUP_DIR="$DEST/_ELIMINADOS/$(date +%Y-%m-%d_%H-%M)"
+    BACKUP_DIR="$DEST/_ELIMINADOS"
 fi
 
 # Converte a string do .env em array
@@ -100,12 +102,10 @@ echo "Lixeira: $BACKUP_DIR" >> "$LOGFILE"
 # Executa o rsync
 # -a: archive mode (preserva permissões, datas, donos, grupos, etc)
 # -v: verbose (detalhes no log)
-# --delete: apaga no destino ficheiros que já não existem na origem (Sync/Espelho) ($JOB_INFO)"
-    fi
-else
-    echo "--- FALHA: $(date) - Ocorreram erros no rsync ---" >> "$LOGFILE"
-    if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
-        "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rsync Local falhou. ($JOB_INFO)
+# --delete: apaga no destino ficheiros que já não existem na origem (Sync/Espelho)
+
+/usr/bin/rsync -av --delete \
+    --backup --backup-dir="$BACKUP_DIR" --suffix="$BACKUP_SUFFIX" \
     --exclude "_ELIMINADOS" \
     --log-file="$LOGFILE" \
     "$SOURCE" "$DEST"
