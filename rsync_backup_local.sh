@@ -42,7 +42,8 @@ if [ -n "$RSYNC_DELETED_BASE_DIR" ]; then
     if [ -n "$SUBFOLDER" ]; then
          BACKUP_DIR="$RSYNC_DELETED_BASE_DIR/${SUBFOLDER}"
     else
-         BACKUP_DIR="$RSYNC_DELETED_BASE_DIR/FULL"
+         # Backup completo: usa a raiz do deleted (rsync preserva a estrutura de pastas)
+         BACKUP_DIR="$RSYNC_DELETED_BASE_DIR"
     fi
 else
     BACKUP_DIR="$DEST/_ELIMINADOS"
