@@ -1,11 +1,10 @@
 # Backup Automation Scripts
 
-This project contains scripts to automate file backups from a local NAS to a local HDD (using `rsync`) and to a cloud provider (Google Drive, using `rclone`). It also includes automated status notifications via Zulip.
+This project contains scripts to automate file backups from a local NAS to a local HDD (using `rsync`). It also includes automated status notifications via Zulip.
 
 ## Scripts Overview
 
 * `rsync_backup_local.sh`: Performs an incremental backup from the configured source to a local destination. Deleted or modified files are moved to a dated "deleted" directory rather than being permanently removed immediately.
-* `rclone_backup_gdrive.sh`: Syncs files from the source to a configured cloud remote. Similar to the local backup, deleted files are moved to a specific backup directory on the remote.
 * `notify_zulip.sh`: A helper script used by the backup scripts to send success or failure notifications to a Zulip stream.
 
 ## Prerequisites
@@ -13,7 +12,6 @@ This project contains scripts to automate file backups from a local NAS to a loc
 Ensure the following tools are installed on your system:
 
 * `rsync`
-* `rclone`
 * `curl` (for notifications)
 * `mountpoint` (usually part of sysvinit-utils or util-linux)
 
@@ -53,16 +51,6 @@ The scripts rely on a `.env` file for configuration. Create this file in the sam
     # Local log file location
     RSYNC_LOG_FILE="/mnt/HDD_Backup/logs/backup_rsync.log"
 
-    # --- Cloud Backup Configuration (Rclone) ---
-    # Rclone remote and path (e.g., RemoteName:Path)
-    RCLONE_DEST="MyRemote:Backup_Main"
-
-    # Remote path for deleted files
-    RCLONE_BACKUP_DIR_BASE="MyRemote:Backup_Deleted"
-
-    # Local log file location for rclone operations
-    RCLONE_LOG_FILE="/mnt/HDD_Backup/logs/backup_rclone.log"
-
     # --- Notification Configuration (Zulip) ---
     ZULIP_URL="https://your-domain.zulipchat.com/api/v1/messages"
     ZULIP_BOT_EMAIL="your-bot-email@zulipchat.com"
@@ -82,11 +70,11 @@ chmod +x *.sh
 ## Configuration Details
 
 * **REQUIRED_MOUNTS_LIST**: This is a critical safety feature. If you are backing up a mounted network drive that has sub-shares, listing them here ensures `rsync` doesn't see an empty directory and delete all your backups thinking the source files were removed.
-* **Safe Deletion**: Both scripts use a `--backup-dir` strategy. If a file is deleted from the source, it is **not** immediately deleted from the destination. Instead, it is moved to a timestamped folder inside `RSYNC_DELETED_BASE_DIR` or `RCLONE_BACKUP_DIR_BASE`.
+* **Safe Deletion**: The script uses a `--backup-dir` strategy. If a file is deleted from the source, it is **not** immediately deleted from the destination. Instead, it is moved to a subdirectory inside `RSYNC_DELETED_BASE_DIR` (preserving the original folder structure).
 
 ## Usage
 
-You can run the scripts manually or schedule them via `cron`.
+You can run the script manually or schedule it via `cron`.
 
 ### Manual Run
 
@@ -94,12 +82,6 @@ To run the local backup:
 
 ```bash
 ./rsync_backup_local.sh
-```
-
-To run the cloud backup:
-
-```bash
-./rclone_backup_gdrive.sh
 ```
 
 ### Cron Example
