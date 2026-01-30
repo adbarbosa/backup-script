@@ -110,9 +110,32 @@ To run the local backup every day at 02:00 AM and the cloud backup at 04:00 AM:
 # Edit crontab
 crontab -e
 
-# Add lines:
+# --- Full Backups ---
 0 2 * * * /home/user/path/to/rsync_backup_local.sh
 0 4 * * * /home/user/path/to/rclone_backup_gdrive.sh
+
+# --- Individual Folder Backups (Local) ---
+0 6 * * * /home/user/path/to/rsync_backup_local.sh joc
+5 6 * * * /home/user/path/to/rsync_backup_local.sh pfg
+10 6 * * * /home/user/path/to/rsync_backup_local.sh disco_iu_new
+15 6 * * * /home/user/path/to/rsync_backup_local.sh backup
+20 6 * * * /home/user/path/to/rsync_backup_local.sh pedrooliv
+25 6 * * * /home/user/path/to/rsync_backup_local.sh ifthen
+30 6 * * * /home/user/path/to/rsync_backup_local.sh public
+35 6 * * * /home/user/path/to/rsync_backup_local.sh disco_iu_xxx
+40 6 * * * /home/user/path/to/rsync_backup_local.sh ams
+45 6 * * * /home/user/path/to/rsync_backup_local.sh crg
+50 6 * * * /home/user/path/to/rsync_backup_local.sh gestao_documental
+55 6 * * * /home/user/path/to/rsync_backup_local.sh fdv
+0 7 * * * /home/user/path/to/rsync_backup_local.sh anabelarebelo
+5 7 * * * /home/user/path/to/rsync_backup_local.sh disco_iu
+10 7 * * * /home/user/path/to/rsync_backup_local.sh jfp
+15 7 * * * /home/user/path/to/rsync_backup_local.sh software
+20 7 * * * /home/user/path/to/rsync_backup_local.sh adb
+25 7 * * * /home/user/path/to/rsync_backup_local.sh danip
+30 7 * * * /home/user/path/to/rsync_backup_local.sh portal
+35 7 * * * /home/user/path/to/rsync_backup_local.sh sns
+40 7 * * * /home/user/path/to/rsync_backup_local.sh acessos
 ```
 
 ## Logs & Notifications
