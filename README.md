@@ -5,6 +5,7 @@ This project contains scripts to automate file backups from a local NAS to a loc
 ## Scripts Overview
 
 * `rsync_backup_local.sh`: Performs an incremental backup from the configured source to a local destination. Deleted or modified files are moved to a dated "deleted" directory rather than being permanently removed immediately.
+* `rsync_backup_offsite.sh`: Mirrors the primary backup drive (HDD 01) to a secondary drive (HDD 02) for offsite storage. Unmounts the drive automatically upon completion.
 * `notify_zulip.sh`: A helper script used by the backup scripts to send success or failure notifications to a Zulip stream.
 
 ## Prerequisites
@@ -50,6 +51,10 @@ The scripts rely on a `.env` file for configuration. Create this file in the sam
 
     # Local log file location
     RSYNC_LOG_FILE="/mnt/HDD_Backup/logs/backup_rsync.log"
+
+    # --- Backup Offsite (Semanal) ---
+    OFFSITE_MOUNT_POINT="/mnt/HDD_20TB_02"
+    OFFSITE_LOG_FILE="/mnt/HDD_20TB_01/logs/backup_offsite.log"
 
     # --- Notification Configuration (Zulip) ---
     ZULIP_URL="https://your-domain.zulipchat.com/api/v1/messages"
@@ -198,6 +203,11 @@ Run separate backup jobs for each folder. Use this approach when you need **gran
 
 # acessos (4K)
 20 16 * * * /home/iu/scripts/backup/rsync_backup_local.sh acessos
+
+# --- Offsite Mirror (Weekly - Saturday Night) ---
+# Mirrors HDD 01 to HDD 02, then unmounts HDD 02 for physical removal.
+# Ensure HDD 02 is mounted before Saturday 22:00.
+0 22 * * 6 /home/adb/Development/003_ImagemUrbana/scripts/backup/rsync_backup_offsite.sh
 ```
 
 ## Logs & Notifications
