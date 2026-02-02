@@ -1,5 +1,7 @@
 #!/bin/bash
 
+START_TIME=$(date +%s)
+
 # Carregar configurações do .env
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 if [ -f "$SCRIPT_DIR/.env" ]; then
@@ -118,12 +120,22 @@ echo "Lixeira: $BACKUP_DIR" >> "$LOGFILE"
 # Verifica o estado de saída do rsync
 if [ $? -eq 0 ]; then
     echo "--- Sucesso: $(date) ---" >> "$LOGFILE"
+    
+    END_TIME=$(date +%s)
+    ELAPSED=$(( END_TIME - START_TIME ))
+    DURATION="$((ELAPSED / 3600))h $(((ELAPSED / 60) % 60))m $((ELAPSED % 60))s"
+
     if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
-        "$SCRIPT_DIR/notify_zulip.sh" "SUCCESS" "Rsync Local concluído com sucesso."
+        "$SCRIPT_DIR/notify_zulip.sh" "SUCCESS" "Rsync Local concluído com sucesso em $DURATION."
     fi
 else
     echo "--- FALHA: $(date) - Ocorreram erros no rsync ---" >> "$LOGFILE"
+
+    END_TIME=$(date +%s)
+    ELAPSED=$(( END_TIME - START_TIME ))
+    DURATION="$((ELAPSED / 3600))h $(((ELAPSED / 60) % 60))m $((ELAPSED % 60))s"
+
     if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
-        "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rsync Local falhou. Verifique o log em $LOGFILE"
+        "$SCRIPT_DIR/notify_zulip.sh" "ERROR" "Rsync Local falhou após $DURATION. Verifique o log em $LOGFILE"
     fi
 fi

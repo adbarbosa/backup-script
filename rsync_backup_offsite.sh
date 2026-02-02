@@ -1,5 +1,7 @@
 #!/bin/bash
 
+START_TIME=$(date +%s)
+
 # Carregar configurações do .env
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 if [ -f "$SCRIPT_DIR/.env" ]; then
@@ -75,15 +77,23 @@ if [ $EXIT_CODE -eq 0 ]; then
     umount "$DEST_MOUNT"
     UMOUNT_RES=$?
     
+    END_TIME=$(date +%s)
+    ELAPSED=$(( END_TIME - START_TIME ))
+    DURATION="$((ELAPSED / 3600))h $(((ELAPSED / 60) % 60))m $((ELAPSED % 60))s"
+
     if [ $UMOUNT_RES -eq 0 ]; then
-        MSG_FINAL="Backup Offsite (Clone 01->02) CONCLUÍDO. O disco $DEST_MOUNT foi desmontado e pode ser removido."
+        MSG_FINAL="Backup Offsite (Clone 01->02) CONCLUÍDO em $DURATION. O disco $DEST_MOUNT foi desmontado e pode ser removido."
     else
-        MSG_FINAL="Backup Offsite CONCLUÍDO, mas falha ao desmontar $DEST_MOUNT. Remova com cuidado."
+        MSG_FINAL="Backup Offsite CONCLUÍDO em $DURATION, mas falha ao desmontar $DEST_MOUNT. Remova com cuidado."
     fi
 
     echo "$MSG_FINAL" >> "$LOGFILE"
     
-    if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
+    END_TIME=$(date +%s)
+    ELAPSED=$(( END_TIME - START_TIME ))
+    DURATION="$((ELAPSED / 3600))h $(((ELAPSED / 60) % 60))m $((ELAPSED % 60))s"
+
+    MSG="ERRO no rsync durante espelhamento Offsite após $DURATION
         "$SCRIPT_DIR/notify_zulip.sh" "SUCCESS" "$MSG_FINAL"
     fi
 else
