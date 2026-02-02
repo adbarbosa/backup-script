@@ -21,6 +21,9 @@ fi
 if [ "$STATUS" == "SUCCESS" ]; then
     ICON=":check_mark:"
     TITLE="Backup Sucesso"
+elif [ "$STATUS" == "START" ]; then
+    ICON=":rocket:"
+    TITLE="Backup Iniciado"
 elif [ "$STATUS" == "TEST" ]; then
     ICON=":loudspeaker:"
     TITLE="Teste de Notificação"
