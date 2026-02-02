@@ -9,6 +9,10 @@ else
     exit 1
 fi
 
+if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
+    "$SCRIPT_DIR/notify_zulip.sh" "START" "Backup Offsite (Clone) a iniciar..."
+fi
+
 DEST_MOUNT="$OFFSITE_MOUNT_POINT"
 SOURCE_MOUNT="$LOCAL_MOUNT_POINT"
 
