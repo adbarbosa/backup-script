@@ -15,13 +15,19 @@ else
     exit 1
 fi
 
-if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
-    "$SCRIPT_DIR/notify_zulip.sh" "START" "Backup local a iniciar..."
-fi
-
 SUBFOLDER="$1"
 # Remove barras finais do subfolder se existirem
 SUBFOLDER="${SUBFOLDER%/}"
+
+if [ -n "$SUBFOLDER" ]; then
+    START_MSG="Backup local a iniciar (Pasta: $SUBFOLDER)..."
+else
+    START_MSG="Backup local a iniciar (TOTAL)..."
+fi
+
+if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
+    "$SCRIPT_DIR/notify_zulip.sh" "START" "$START_MSG"
+fi
 
 if [ -n "$SUBFOLDER" ]; then
     SOURCE="${SOURCE_PATH}${SUBFOLDER}/"
