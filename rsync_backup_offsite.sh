@@ -88,12 +88,8 @@ if [ $EXIT_CODE -eq 0 ]; then
     fi
 
     echo "$MSG_FINAL" >> "$LOGFILE"
-    
-    END_TIME=$(date +%s)
-    ELAPSED=$(( END_TIME - START_TIME ))
-    DURATION="$((ELAPSED / 3600))h $(((ELAPSED / 60) % 60))m $((ELAPSED % 60))s"
 
-    MSG="ERRO no rsync durante espelhamento Offsite após $DURATION
+    if [ -x "$SCRIPT_DIR/notify_zulip.sh" ]; then
         "$SCRIPT_DIR/notify_zulip.sh" "SUCCESS" "$MSG_FINAL"
     fi
 else
